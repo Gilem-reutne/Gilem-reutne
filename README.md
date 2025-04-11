@@ -2,4 +2,4 @@
 i'm into math-rock (fav Balloons - Igal ist 88), some avant-garde metal bands (fav Cleric - Retrocausal) and prog-rock (fav Opeth - Damnation, Anekdoten - Until All The Ghosts Are Gone).
 trying not to get bored of Zenless Zone Zero to get Yi Xuan milkers.
 
-so many space to write still here is barely anything...
+so much space to write... and yet, there's barely anything?
