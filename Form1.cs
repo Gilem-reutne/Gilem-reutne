@@ -1,185 +1,168 @@
-// это форма с элементами (windows forms), скину скрином
 using System.ComponentModel;
+using System.Windows.Forms;
 
 namespace LibraryApp;
 
-public partial class Form1 : Form
+public class Form1 : Form
+{
+    private BindingList<Book> _books = new();
+    private DataGridView gridBooks = null!;
+    private MenuStrip menuStrip = null!;
+    private Button btnAdd = null!;
+    private Button btnEdit = null!;
+    private Button btnDelete = null!;
+
+    public Form1()
     {
-        private BindingList<Book> _books = new();
-        private int _loadedCount = 0;
-        private const int PageSize = 50;
+        InitializeUI();
+        Load += Form1_Load;
+    }
 
-        public Form1()
+    private void InitializeUI()
+    {
+        Text = "Библиотека";
+        ClientSize = new System.Drawing.Size(800, 500);
+        StartPosition = FormStartPosition.CenterScreen;
+
+        // MenuStrip
+        menuStrip = new MenuStrip();
+        
+        var fileMenu = new ToolStripMenuItem("Файл");
+        var exitItem = new ToolStripMenuItem("Выход", null, (s, e) => Close());
+        fileMenu.DropDownItems.Add(exitItem);
+
+        var editMenu = new ToolStripMenuItem("Правка");
+        var addItem = new ToolStripMenuItem("Добавить", null, (s, e) => AddBook());
+        var editItem = new ToolStripMenuItem("Редактировать", null, (s, e) => EditBook());
+        var deleteItem = new ToolStripMenuItem("Удалить", null, (s, e) => DeleteBook());
+        editMenu.DropDownItems.AddRange(new ToolStripItem[] { addItem, editItem, deleteItem });
+
+        var helpMenu = new ToolStripMenuItem("Справка");
+        var aboutItem = new ToolStripMenuItem("О программе", null, (s, e) =>
+            MessageBox.Show("Приложение 'Библиотека'\nУчебный проект по Windows Forms.", "О программе", MessageBoxButtons.OK, MessageBoxIcon.Information));
+        helpMenu.DropDownItems.Add(aboutItem);
+
+        menuStrip.Items.AddRange(new ToolStripItem[] { fileMenu, editMenu, helpMenu });
+        MainMenuStrip = menuStrip;
+        Controls.Add(menuStrip);
+
+        // DataGridView
+        gridBooks = new DataGridView
         {
-            InitializeComponent();
-            Load += Form1_Load;
-        }
+            Location = new System.Drawing.Point(0, 24),
+            Size = new System.Drawing.Size(800, 400),
+            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
+            ReadOnly = true,
+            AllowUserToAddRows = false,
+            SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+            MultiSelect = false,
+            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+        };
+        gridBooks.MouseDown += GridBooks_MouseDown;
+        Controls.Add(gridBooks);
 
-        private void Form1_Load(object? sender, EventArgs e)
+        // Context menu for DataGridView
+        var contextMenu = new ContextMenuStrip();
+        contextMenu.Items.Add("Добавить", null, (s, e) => AddBook());
+        contextMenu.Items.Add("Редактировать", null, (s, e) => EditBook());
+        contextMenu.Items.Add("Удалить", null, (s, e) => DeleteBook());
+        gridBooks.ContextMenuStrip = contextMenu;
+
+        // Bottom panel with buttons
+        var panel = new Panel
         {
-            Text = "Библиотека";
-            StartPosition = FormStartPosition.CenterScreen;
+            Height = 50,
+            Dock = DockStyle.Bottom
+        };
 
-            // Основные настройки таблицы (если не выставил в дизайнере)
-            gridBooks.ReadOnly = true;                               // TODO: gridBooks — имя DataGridView
-            gridBooks.AllowUserToAddRows = false;
-            gridBooks.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            gridBooks.MultiSelect = false;
+        btnAdd = new Button { Text = "Добавить", Location = new System.Drawing.Point(10, 10), Width = 100 };
+        btnEdit = new Button { Text = "Редактировать", Location = new System.Drawing.Point(120, 10), Width = 100 };
+        btnDelete = new Button { Text = "Удалить", Location = new System.Drawing.Point(230, 10), Width = 100 };
 
-            var loaded = FileService.LoadData();
-            _books = new BindingList<Book>(loaded);
-            gridBooks.DataSource = _books;
-            ConfigureGridColumns();
+        btnAdd.Click += (s, e) => AddBook();
+        btnEdit.Click += (s, e) => EditBook();
+        btnDelete.Click += (s, e) => DeleteBook();
 
-            // Кнопки
-            btnAdd.Click += btnAdd_Click;       // TODO: замени имя, если отличается
-            btnEdit.Click += btnEdit_Click;     // TODO
-            btnDelete.Click += btnDelete_Click; // TODO
+        panel.Controls.Add(btnAdd);
+        panel.Controls.Add(btnEdit);
+        panel.Controls.Add(btnDelete);
+        Controls.Add(panel);
+    }
 
-            // Меню и контекстное меню — создаём программно, чтобы обойти глюки дизайнера
-            BuildMainMenu();
-            BuildContextMenu();
+    private void Form1_Load(object? sender, EventArgs e)
+    {
+        var loaded = FileService.Load();
+        _books = new BindingList<Book>(loaded);
+        gridBooks.DataSource = _books;
+        ConfigureGridColumns();
+    }
 
-            // Правый клик — выделение строки под курсором
-            gridBooks.MouseDown += gridBooks_MouseDown;
-        }
+    private void ConfigureGridColumns()
+    {
+        if (gridBooks.Columns["Id"] != null) gridBooks.Columns["Id"].Visible = false;
+        if (gridBooks.Columns["Title"] != null) gridBooks.Columns["Title"].HeaderText = "Название";
+        if (gridBooks.Columns["Author"] != null) gridBooks.Columns["Author"].HeaderText = "Автор";
+        if (gridBooks.Columns["Year"] != null) gridBooks.Columns["Year"].HeaderText = "Год";
+        if (gridBooks.Columns["Price"] != null) gridBooks.Columns["Price"].HeaderText = "Цена";
+        if (gridBooks.Columns["Genre"] != null) gridBooks.Columns["Genre"].HeaderText = "Жанр";
+        if (gridBooks.Columns["InStock"] != null) gridBooks.Columns["InStock"].HeaderText = "В наличии";
+    }
 
-        private void ConfigureGridColumns()
+    protected override void OnFormClosing(FormClosingEventArgs e)
+    {
+        FileService.Save(_books.ToList());
+        base.OnFormClosing(e);
+    }
+
+    private void AddBook()
+    {
+        using var editForm = new EditForm();
+        if (editForm.ShowDialog() == DialogResult.OK)
         {
-            if (gridBooks.Columns["Id"] != null) gridBooks.Columns["Id"].Visible = false;
-            if (gridBooks.Columns["Title"] != null) gridBooks.Columns["Title"].HeaderText = "Название";
-            if (gridBooks.Columns["Author"] != null) gridBooks.Columns["Author"].HeaderText = "Автор";
-            if (gridBooks.Columns["Year"] != null) gridBooks.Columns["Year"].HeaderText = "Год";
-            if (gridBooks.Columns["Price"] != null) gridBooks.Columns["Price"].HeaderText = "Цена";
-            if (gridBooks.Columns["IsAvailable"] != null) gridBooks.Columns["IsAvailable"].HeaderText = "Наличие";
-            if (gridBooks.Columns["Genre"] != null) gridBooks.Columns["Genre"].HeaderText = "Жанр";
-        }
-
-        protected override void OnFormClosing(FormClosingEventArgs e)
-        {
-            FileService.SaveData(_books.ToList());
-            base.OnFormClosing(e);
-        }
-
-        // ----- КНОПКИ -----
-        private void btnAdd_Click(object? sender, EventArgs e)
-        {
-            using var editForm = new EditForm();
-            if (editForm.ShowDialog() == DialogResult.OK)
-            {
-                _books.Add(editForm.ResultBook);
-                FileService.AppendBook(editForm.ResultBook);
-            }
-        }
-
-        private void btnEdit_Click(object? sender, EventArgs e)
-        {
-            if (gridBooks.SelectedRows.Count == 0)
-            {
-                MessageBox.Show("Выберите книгу.", "Редактирование");
-                return;
-            }
-            var selected = (Book)gridBooks.SelectedRows[0].DataBoundItem!;
-            using var editForm = new EditForm(selected);
-            if (editForm.ShowDialog() == DialogResult.OK)
-            {
-                int idx = _books.IndexOf(selected);
-                _books[idx] = editForm.ResultBook;
-            }
-        }
-
-        private void btnDelete_Click(object? sender, EventArgs e)
-        {
-            if (gridBooks.SelectedRows.Count == 0)
-            {
-                MessageBox.Show("Выберите книгу для удаления.", "Удаление");
-                return;
-            }
-            var book = (Book)gridBooks.SelectedRows[0].DataBoundItem!;
-            var confirm = MessageBox.Show($"Удалить \"{book.Title}\"?", "Подтверждение",
-                MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-            if (confirm == DialogResult.Yes)
-                _books.Remove(book);
-        }
-
-        // ----- МЕНЮ (создаём програмно) -----
-        private void BuildMainMenu()
-        {
-            // menuStrip1 — должен существовать на форме (пустой)
-            menuStrip1.Items.Clear(); // TODO: menuStrip1 — имя MenuStrip
-
-            var file = new ToolStripMenuItem("Файл");
-            var fileLoad = new ToolStripMenuItem("Загрузить", null, fileLoadMenuItem_Click);
-            var fileSave = new ToolStripMenuItem("Сохранить", null, fileSaveMenuItem_Click);
-            var fileExit = new ToolStripMenuItem("Выход", null, fileExitMenuItem_Click);
-            file.DropDownItems.AddRange(new ToolStripItem[] { fileLoad, fileSave, fileExit });
-
-            var edit = new ToolStripMenuItem("Правка");
-            var editAdd = new ToolStripMenuItem("Добавить", null, (s, e) => btnAdd_Click(s, e));
-            var editEdit = new ToolStripMenuItem("Редактировать", null, (s, e) => btnEdit_Click(s, e));
-            var editDelete = new ToolStripMenuItem("Удалить", null, (s, e) => btnDelete_Click(s, e));
-            edit.DropDownItems.AddRange(new ToolStripItem[] { editAdd, editEdit, editDelete });
-
-            var help = new ToolStripMenuItem("Справка");
-            var helpAbout = new ToolStripMenuItem("О программе", null, helpAboutMenuItem_Click);
-            help.DropDownItems.Add(helpAbout);
-
-            menuStrip1.Items.AddRange(new ToolStripItem[] { file, edit, help });
-            MainMenuStrip = menuStrip1;
-        }
-
-        private void BuildContextMenu()
-        {
-            var ctx = new ContextMenuStrip();
-            ctx.Items.Add("Добавить", null, (s, e) => btnAdd_Click(s, e));
-            ctx.Items.Add("Редактировать", null, (s, e) => btnEdit_Click(s, e));
-            ctx.Items.Add("Удалить", null, (s, e) => btnDelete_Click(s, e));
-            gridBooks.ContextMenuStrip = ctx; // привязываем к таблице
-        }
-
-        // Обработчики пунктов меню "Файл"
-        private void fileLoadMenuItem_Click(object? sender, EventArgs e)
-        {
-            var loaded = FileService.LoadData();
-            _books = new BindingList<Book>(loaded);
-            gridBooks.DataSource = _books;
-            ConfigureGridColumns();
-        }
-
-        private void fileSaveMenuItem_Click(object? sender, EventArgs e)
-        {
-            FileService.SaveData(_books.ToList());
-            MessageBox.Show("Данные сохранены.", "Сохранение", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
-
-        private void fileExitMenuItem_Click(object? sender, EventArgs e) => Close();
-
-        private void helpAboutMenuItem_Click(object? sender, EventArgs e)
-        {
-            MessageBox.Show("Приложение 'Библиотека'\nУчебный проект по Windows Forms.", 
-                "О программе", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
-
-        private void gridBooks_MouseDown(object? sender, MouseEventArgs e)
-        {
-            if (e.Button == MouseButtons.Right)
-            {
-                var hit = gridBooks.HitTest(e.X, e.Y);
-                if (hit.RowIndex >= 0)
-                {
-                    gridBooks.ClearSelection();
-                    gridBooks.Rows[hit.RowIndex].Selected = true;
-                }
-            }
-        }
-
-        // (Необязательно) Подгрузка по частям
-        private void LoadMoreChunk()
-        {
-            var chunk = FileService.LoadChunk(_loadedCount, PageSize);
-            foreach (var b in chunk) _books.Add(b);
-            _loadedCount += chunk.Count;
-            if (chunk.Count == 0)
-                MessageBox.Show("Дополнительных данных нет.", "Загрузка");
+            _books.Add(editForm.ResultBook);
         }
     }
+
+    private void EditBook()
+    {
+        if (gridBooks.SelectedRows.Count == 0)
+        {
+            MessageBox.Show("Выберите книгу.", "Редактирование");
+            return;
+        }
+        var selected = (Book)gridBooks.SelectedRows[0].DataBoundItem!;
+        using var editForm = new EditForm(selected);
+        if (editForm.ShowDialog() == DialogResult.OK)
+        {
+            int idx = _books.IndexOf(selected);
+            _books[idx] = editForm.ResultBook;
+        }
+    }
+
+    private void DeleteBook()
+    {
+        if (gridBooks.SelectedRows.Count == 0)
+        {
+            MessageBox.Show("Выберите книгу для удаления.", "Удаление");
+            return;
+        }
+        var book = (Book)gridBooks.SelectedRows[0].DataBoundItem!;
+        var confirm = MessageBox.Show($"Удалить \"{book.Title}\"?", "Подтверждение",
+            MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+        if (confirm == DialogResult.Yes)
+            _books.Remove(book);
+    }
+
+    private void GridBooks_MouseDown(object? sender, MouseEventArgs e)
+    {
+        if (e.Button == MouseButtons.Right)
+        {
+            var hit = gridBooks.HitTest(e.X, e.Y);
+            if (hit.RowIndex >= 0)
+            {
+                gridBooks.ClearSelection();
+                gridBooks.Rows[hit.RowIndex].Selected = true;
+            }
+        }
+    }
+}

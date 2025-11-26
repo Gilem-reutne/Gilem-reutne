@@ -5,5 +5,6 @@ public enum Genre
     Fiction,
     Science,
     History,
-    Fantasy
+    Fantasy,
+    Biography
 }
