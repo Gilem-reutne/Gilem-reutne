@@ -117,7 +117,8 @@ public class EditForm : Form
         txtAuthor.DataBindings.Add("Text", _book, nameof(Book.Author), false, DataSourceUpdateMode.OnPropertyChanged);
         nudYear.DataBindings.Add("Value", _book, nameof(Book.Year), false, DataSourceUpdateMode.OnPropertyChanged);
         chkInStock.DataBindings.Add("Checked", _book, nameof(Book.InStock), false, DataSourceUpdateMode.OnPropertyChanged);
-        cmbGenre.DataBindings.Add("SelectedItem", _book, nameof(Book.Genre), false, DataSourceUpdateMode.OnPropertyChanged);
+        cmbGenre.SelectedItem = _book.Genre;
+        cmbGenre.SelectedIndexChanged += (s, e) => _book.Genre = (Genre)cmbGenre.SelectedItem!;
         txtPrice.Text = _book.Price.ToString();
     }
 

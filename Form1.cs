@@ -110,7 +110,7 @@ public class Form1 : Form
 
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
-        FileService.Save(_books.ToList());
+        FileService.Save(_books);
         base.OnFormClosing(e);
     }
 
